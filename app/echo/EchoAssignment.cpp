@@ -1,8 +1,5 @@
 #include "EchoAssignment.hpp"
 
-#include <iostream>//remove
-#include <fstream>//remove
-
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -46,55 +43,40 @@ int EchoAssignment::serverMain(const char *bind_ip, int port,const char *server_
   while(1) {
     struct sockaddr_in client_addr = {};
     socklen_t client_addr_len = (socklen_t)sizeof(client_addr);
-    int client_sock = accept(serv_sock, (sockaddr*)&client_addr, &client_addr_len);
+    int client_sock = accept(serv_sock, (sockaddr*)&client_addr, &client_addr_len); //accept하여 socket생성
     if(client_sock == -1) return -1;
 
-    struct sockaddr_in sad = {};
+    struct sockaddr_in sad = {}; //getsockname을 통해 server의 IP를 저장
     socklen_t sad_len = sizeof(sad);
     int g = getsockname(client_sock, (struct sockaddr*)&sad, &sad_len);
     if(g==-1) return -1;
     char* ip_getsock = inet_ntoa(sad.sin_addr);
-    //printf("[server] get : %s\n",ip_getsock);
     
-    char ip_str[INET_ADDRSTRLEN];
+    char ip_str[INET_ADDRSTRLEN]; //cilent_addr에서 client의 IP를 추출
     memset(ip_str,0,INET_ADDRSTRLEN);
     inet_ntop(AF_INET, &(client_addr.sin_addr), ip_str, INET_ADDRSTRLEN);
-
-    char ip_str_s[INET_ADDRSTRLEN];
-    memset(ip_str_s,0,INET_ADDRSTRLEN);
-    inet_ntop(AF_INET, &(serv_addr.sin_addr), ip_str_s, INET_ADDRSTRLEN);
 
     memset(buff,0,256);
     int rd = read(client_sock, buff, sizeof(buff)-1);
     if(rd == -1) {return -1;}
-    //printf("[server] read :  %s\n", buff);
     if(strcmp(buff,"hello")==0) {
-      //printf("[server] hello : %s\n",server_hello);//dsfjslks
-      write(client_sock, server_hello, strlen(server_hello));
+      int wr = write(client_sock, server_hello, strlen(server_hello));
+      if(wr==-1) return -1;
       submitAnswer(ip_str,buff);
     }
     else if(strcmp(buff,"whoami")==0) {
-      struct sockaddr name;
-      socklen_t len = (socklen_t)sizeof(name);
-      int g = getpeername(client_sock,&name,&len);
-      if(g==-1) return -1;
-      //printf("[server] whoami : %s\n",ip_getsock_c);//
-      write(client_sock, ip_str, strlen(ip_str));
+      int wr = write(client_sock, ip_str, strlen(ip_str));
+      if(wr==-1) return -1;
       submitAnswer(ip_str,buff);
     }
     else if(strcmp(buff,"whoru")==0) {
-      struct sockaddr name;
-      socklen_t len = (socklen_t)sizeof(name);
-      int g = getsockname(client_sock,&name,&len);
-      //printf("[server] whoru : bind_ip %s, ip_str_s %s, ip_getsock %s\n", bind_ip,ip_str_s,ip_getsock);
-      write(client_sock,ip_getsock, strlen(ip_getsock));
+      int wr = write(client_sock,ip_getsock, strlen(ip_getsock));
+      if(wr==-1) return -1;
       submitAnswer(ip_str,buff);
     }
     else {
       int wr = write(client_sock,buff,sizeof(buff));
-      //int wr = write(client_sock,ip_str,strlen(ip_str));
       if(wr == -1) return -1;
-      //printf("[server] echo : sock %s, peer %s", ip_str_s,ip_getsock);
       submitAnswer(ip_str,buff);
     }
   }
@@ -107,7 +89,6 @@ int EchoAssignment::clientMain(const char *server_ip, int port,const char *comma
   // !IMPORTANT: do not use global variables and do not define/use functions
   // !IMPORTANT: for all system calls, when an error happens, your program must
   // return. e.g., if an read() call return -1, return -1 for clientMain.
-  //printf("[client] server_ip : %s, port : %d, command : %s\n", server_ip,port,command);
   struct sockaddr_in serv_addr = {};
   char buff[256];
   memset(&serv_addr, 0, sizeof(serv_addr));
@@ -119,20 +100,12 @@ int EchoAssignment::clientMain(const char *server_ip, int port,const char *comma
   
   while(1) {
     if(connect(client_sock, (sockaddr*)&serv_addr, sizeof(serv_addr)) == -1) return -1;
-    struct sockaddr_in cad = {};
-    socklen_t cad_len = (socklen_t)sizeof(cad);
-    int g = getpeername(client_sock, (struct sockaddr*)&cad, &cad_len);
-    if(g==-1) return -1;
-    char* ip_getsock = inet_ntoa(cad.sin_addr);
-    //printf("[client] get : %s\n",ip_getsock);
+
     int wr = write(client_sock, command, strlen(command));
     if(wr == -1) return -1;
-    //printf("[client] write : %s\n",command);//gggggggg
     memset(buff,0,256);
     int rd = read(client_sock, buff, 255);
     if(rd == -1) return -1;
-    //printf("[client] : %s, %s\n", ip_getsock, server_ip);//ggggggg
-    //printf("aaaaaaaaaaaa : %s\n",buff);
     submitAnswer(server_ip,buff);
     break;
   }
