@@ -29,15 +29,9 @@ int EchoAssignment::serverMain(const char *bind_ip, int port,const char *server_
   // !IMPORTANT: do not use global variables and do not define/use functions
   // !IMPORTANT: for all system calls, when an error happens, your program must
   // return. e.g., if an read() call return -1, return -1 for serverMain.
-  printf("[server] ip : %s port : %d\n",bind_ip,port);
-  std::ofstream outputFile("text.txt");
-  if(!outputFile.is_open()) {
-    printf("Failed to open\n");
-  }
-  outputFile << "[server] ip : " << bind_ip << " port : " << port << "\n";
+  //printf("[server] ip : %s port : %d\n",bind_ip,port);
   struct sockaddr_in serv_addr = {};
-  struct sockaddr_in client_addr = {};
-  socklen_t client_addr_len = (socklen_t)sizeof(client_addr);
+  
   char buff[256];
   memset(&serv_addr, 0, sizeof(serv_addr));
   serv_addr.sin_family = AF_INET;
@@ -49,53 +43,61 @@ int EchoAssignment::serverMain(const char *bind_ip, int port,const char *server_
   if(bind(serv_sock,(sockaddr*)&serv_addr,sizeof(serv_addr))==-1) return -1;
   if(listen(serv_sock,4)==-1) return -1;
   
-  char* straddr = inet_ntoa(client_addr.sin_addr);
   while(1) {
+    struct sockaddr_in client_addr = {};
+    socklen_t client_addr_len = (socklen_t)sizeof(client_addr);
     int client_sock = accept(serv_sock, (sockaddr*)&client_addr, &client_addr_len);
     if(client_sock == -1) return -1;
+
+    struct sockaddr_in sad = {};
+    socklen_t sad_len = sizeof(sad);
+    int g = getsockname(client_sock, (struct sockaddr*)&sad, &sad_len);
+    if(g==-1) return -1;
+    char* ip_getsock = inet_ntoa(sad.sin_addr);
+    //printf("[server] get : %s\n",ip_getsock);
+    
     char ip_str[INET_ADDRSTRLEN];
+    memset(ip_str,0,INET_ADDRSTRLEN);
     inet_ntop(AF_INET, &(client_addr.sin_addr), ip_str, INET_ADDRSTRLEN);
-    outputFile << "[server] accept : " << ip_str << "\n";
-    char* straddr = inet_ntoa(client_addr.sin_addr);
+
+    char ip_str_s[INET_ADDRSTRLEN];
+    memset(ip_str_s,0,INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, &(serv_addr.sin_addr), ip_str_s, INET_ADDRSTRLEN);
+
     memset(buff,0,256);
-    int rd = read(client_sock, buff, sizeof(buff));
+    int rd = read(client_sock, buff, sizeof(buff)-1);
     if(rd == -1) {return -1;}
-    printf("[server] read :  %s\n", buff);
-    outputFile << "[server] read : ip<" << ip_str << ">=" << buff << "\n";
+    //printf("[server] read :  %s\n", buff);
     if(strcmp(buff,"hello")==0) {
-      printf("[server] hello : %s\n",server_hello);//dsfjslks
-      outputFile << "[server] hello : ip<" << ip_str << ">=" << server_hello << "\n";
-      write(client_sock, server_hello, sizeof(server_hello));
-      submitAnswer(ip_str,server_hello);
+      //printf("[server] hello : %s\n",server_hello);//dsfjslks
+      write(client_sock, server_hello, strlen(server_hello));
+      submitAnswer(ip_str,buff);
     }
     else if(strcmp(buff,"whoami")==0) {
       struct sockaddr name;
       socklen_t len = (socklen_t)sizeof(name);
       int g = getpeername(client_sock,&name,&len);
       if(g==-1) return -1;
-      printf("[server] whoami : %s\n",name.sa_data);//
-      outputFile << "[server] whoami : ip<" << ip_str << ">=" << ip_str << "\n";
-      write(client_sock, ip_str, sizeof(ip_str));
-      submitAnswer(ip_str,ip_str);
+      //printf("[server] whoami : %s\n",ip_getsock_c);//
+      write(client_sock, ip_str, strlen(ip_str));
+      submitAnswer(ip_str,buff);
     }
     else if(strcmp(buff,"whoru")==0) {
       struct sockaddr name;
       socklen_t len = (socklen_t)sizeof(name);
       int g = getsockname(client_sock,&name,&len);
-      printf("[server] whoru : %s\n", name.sa_data);
-      outputFile << "[server] whoru : ip<" << ip_str << ">=" << bind_ip <<"\n";
-      write(client_sock,name.sa_data, sizeof(name.sa_data));
-      submitAnswer(ip_str,name.sa_data);
+      //printf("[server] whoru : bind_ip %s, ip_str_s %s, ip_getsock %s\n", bind_ip,ip_str_s,ip_getsock);
+      write(client_sock,ip_getsock, strlen(ip_getsock));
+      submitAnswer(ip_str,buff);
     }
     else {
       int wr = write(client_sock,buff,sizeof(buff));
+      //int wr = write(client_sock,ip_str,strlen(ip_str));
       if(wr == -1) return -1;
-      printf("[server] echo : %s\n", buff);
-      outputFile << "[server] whoru : ip<" << ip_str <<">=" << buff <<"\n";
+      //printf("[server] echo : sock %s, peer %s", ip_str_s,ip_getsock);
       submitAnswer(ip_str,buff);
     }
   }
-  outputFile.close();
   close(serv_sock);
   return 0;
 }
@@ -105,7 +107,7 @@ int EchoAssignment::clientMain(const char *server_ip, int port,const char *comma
   // !IMPORTANT: do not use global variables and do not define/use functions
   // !IMPORTANT: for all system calls, when an error happens, your program must
   // return. e.g., if an read() call return -1, return -1 for clientMain.
-  printf("[client] server_ip : %s, port : %d, command : %s\n", server_ip,port,command);
+  //printf("[client] server_ip : %s, port : %d, command : %s\n", server_ip,port,command);
   struct sockaddr_in serv_addr = {};
   char buff[256];
   memset(&serv_addr, 0, sizeof(serv_addr));
@@ -114,16 +116,23 @@ int EchoAssignment::clientMain(const char *server_ip, int port,const char *comma
   serv_addr.sin_port = htons(port);
   int client_sock = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
   if(client_sock == -1) return -1;
-  if(connect(client_sock, (sockaddr*)&serv_addr, sizeof(serv_addr)) == -1) return -1;
-  printf("[client] connect\n");
+  
   while(1) {
+    if(connect(client_sock, (sockaddr*)&serv_addr, sizeof(serv_addr)) == -1) return -1;
+    struct sockaddr_in cad = {};
+    socklen_t cad_len = (socklen_t)sizeof(cad);
+    int g = getpeername(client_sock, (struct sockaddr*)&cad, &cad_len);
+    if(g==-1) return -1;
+    char* ip_getsock = inet_ntoa(cad.sin_addr);
+    //printf("[client] get : %s\n",ip_getsock);
     int wr = write(client_sock, command, strlen(command));
     if(wr == -1) return -1;
-    printf("[client] write : %s\n",command);//gggggggg
+    //printf("[client] write : %s\n",command);//gggggggg
     memset(buff,0,256);
-    int rd = read(client_sock, buff, sizeof(buff));
+    int rd = read(client_sock, buff, 255);
     if(rd == -1) return -1;
-    printf("[client] read : %s\n", buff);//ggggggg
+    //printf("[client] : %s, %s\n", ip_getsock, server_ip);//ggggggg
+    //printf("aaaaaaaaaaaa : %s\n",buff);
     submitAnswer(server_ip,buff);
     break;
   }

@@ -1,0 +1,1 @@
+[client] server ip : 10.0.0.10, port : 9000, command : echo-hello168d
